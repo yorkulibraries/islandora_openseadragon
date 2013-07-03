@@ -12,7 +12,7 @@ function islandora_openseadragon_menu() {
   return array(
     'admin/islandora/openseadragon' => array(
       'title' => 'OpenSeadragon',
-      'description' => 'Configuration for the OpenSeadragon viewer.',
+      'description' => 'Configure the OpenSeadragon viewer.',
       'page callback' => 'drupal_get_form',
       'access arguments' => array('administer site configuration'),
       'page arguments' => array('islandora_openseadragon_admin'),
@@ -44,7 +44,7 @@ function islandora_openseadragon_islandora_viewer_info() {
     'islandora_openseadragon' => array(
       'label' => t('OpenSeadragon'),
         // Later we'll add DZI too.
-      'description' => t('OpenSeadragon viewer with Djatoka as tilesource.'),
+      'description' => t('OpenSeadragon viewer with djatoka as tilesource.'),
       'configuration' => 'admin/islandora/openseadragon',
       'callback' => 'islandora_openseadragon_callback',
         // DZI has xml as mimetype? Not sure how to handle that.
@@ -57,17 +57,19 @@ function islandora_openseadragon_islandora_viewer_info() {
  * Callback function for the viewer.
  *
  * @param array $params
- *   Params required by the theme
- *   Image url be passed to the viewer.
- * @param IslandoraFedoraObject $fedora_object
+ *   Params required by the theme. We require the keys:
+ *   - jp2_url: The URL to the JP2 image.
+ * @param IslandoraAbstractObject $fedora_object
  *   The object that we are viewing.
  *
  * @return string
  *   HTML repersentation of the OpenSeadragon viewer
  */
 function islandora_openseadragon_callback($params = NULL, $fedora_object = NULL) {
-  $uri = $params['jp2_url'];
-  return theme('islandora_openseadragon_viewer', array('uri' => $uri, 'fedora_object' => $fedora_object));
+  if (isset($params['jp2_url'])) {
+    $uri = $params['jp2_url'];
+    return theme('islandora_openseadragon_viewer', array('uri' => $uri, 'fedora_object' => $fedora_object));
+  }
 }
 
 /**
@@ -80,8 +82,33 @@ function islandora_openseadragon_preprocess_islandora_openseadragon_viewer(&$var
   $variables['viewer_id'] = 'islandora-openseadragon';
   $settings = array(
     'id' => $variables['viewer_id'],
-    'prefixUrl' => url($library_path),
+    'prefixUrl' => file_create_url("$library_path/images/"),
   );
+
+  module_load_include('inc', 'islandora_openseadragon', 'includes/utilities');
+  $installed_version = islandora_openseadragon_get_installed_version();
+
+  if (version_compare($installed_version, '0.9.82') <= 0) {
+    // XXX: Version numbers don't quite line-up for the change in the nav image
+    // prefix URL, so now, let the hacking begin!... Just for compatibility
+    // with older versions.
+    $types = array('zoomIn', 'zoomOut', 'home', 'fullpage', 'previous', 'next');
+    $actions = array(
+      'REST' => 'rest',
+      'GROUP' => 'grouphover',
+      'HOVER' => 'hover',
+      'DOWN' => 'pressed',
+    );
+    foreach ($types as $type) {
+      foreach ($actions as $action => $namepart) {
+        $settings['navImages'][$type][$action] = format_string('!type_!action.png', array(
+          '!type' => strtolower($type),
+          '!action' => $namepart,
+        ));
+      }
+    }
+  }
+
   $settings = array_merge($settings, islandora_openseadragon_get_settings());
   foreach ($settings as $key => $val) {
     if (filter_var($val, FILTER_VALIDATE_FLOAT)) {
@@ -93,28 +120,36 @@ function islandora_openseadragon_preprocess_islandora_openseadragon_viewer(&$var
   }
 
   // This is where we jam in some HOCR coordinates.
-  if (isset($_GET['terms']) && isset($variables['fedora_object'])) {
-    $highlighting_info = islandora_paged_content_get_highlighting_info($variables['fedora_object'], urldecode($_GET['terms']));
-    $highlights = $highlighting_info['bounding_boxes'];
+  if (isset($variables['fedora_object']) && isset($_GET['solr'])) {
+    $params = $_GET['solr']['params'];
+    $params['fq'][] = format_string('PID:"!pid"', array(
+      '!pid' => $variables['fedora_object']->id,
+    ));
+    module_load_include('inc', 'islandora_paged_content', 'includes/highlighting');
+    $highlighting_info = islandora_paged_content_perform_solr_highlighting_query($_GET['solr']['query'], $params);
+    $highlights = array();
 
-    foreach ($highlights as $key => $highlight) {
-      // The size on the x axis is used to calculate the proportional values
-      // under the openseadragon coordinate system.
-      $highlights[$key]['x'] = $highlights[$key]['left'] / $highlighting_info['width'];
-      $highlights[$key]['y'] = $highlights[$key]['top'] / $highlighting_info['width'];
-      $highlights[$key]['width'] = ($highlights[$key]['right'] - $highlights[$key]['left']) / $highlighting_info['width'];
-      $highlights[$key]['height'] = ($highlights[$key]['bottom'] - $highlights[$key]['top']) / $highlighting_info['width'];
-      unset($highlights[$key]['left']);
-      unset($highlights[$key]['top']);
-      unset($highlights[$key]['right']);
-      unset($highlights[$key]['bottom']);
-      $highlights[$key]['className'] = "islandora-openseadragon-highlight";
+    foreach ($highlighting_info as $pid => $info) {
+      foreach ($info['snippets'] as $snippet => $bounding_boxes) {
+        foreach ($bounding_boxes as $bounding_box) {
+          // The size on the x axis is used to calculate the proportional values
+          // under the openseadragon coordinate system.
+          $highlights[] = array(
+            'x' => $bounding_box['left'] / $info['page']['width'],
+            'y' => $bounding_box['top'] / $info['page']['width'],
+            'width' => ($bounding_box['right'] - $bounding_box['left']) / $info['page']['width'],
+            'height' => ($bounding_box['bottom'] - $bounding_box['top']) / $info['page']['width'],
+            'className' => "islandora-openseadragon-highlight",
+          );
+        }
+      }
     }
     $settings['overlays'] = $highlights;
   }
+
   drupal_add_js(array(
       'islandoraOpenSeadragon' => array(
-        'pid' => $variables['fedora_object']->id,
+        'pid' => isset($variables['fedora_object'])? $variables['fedora_object']->id : NULL,
         'resourceUri' => $variables['uri'],
         'tileSize' => (int) variable_get('islandora_openseadragon_tile_size', '256'),
         'tileOverlap' => (int) variable_get('islandora_openseadragon_tile_overlap', '0'),
