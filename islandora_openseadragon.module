@@ -208,6 +208,7 @@ function islandora_openseadragon_get_settings() {
     'zoomPerSecond' => '2.0',
     'showNavigator' => TRUE,
     'defaultZoomLevel' => '1.0',
+    'showRotationControl' => TRUE,
   );
 }
 

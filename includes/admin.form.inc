@@ -121,6 +121,13 @@ function islandora_openseadragon_admin($form, &$form_state) {
     '#default_value' => $settings['showNavigator'],
     '#description' => t('Toggles whether image navigator is displayed.'),
   );
+  // Show Rotation controls.
+  $form['islandora_openseadragon_settings']['showRotationControl'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show Rotation controls'),
+    '#default_value' => $settings['showRotationControl'],
+    '#description' => t('Toggles whether the rotation controls are shown.'),
+  );
   // Minimum zoom image ratio.
   $form['islandora_openseadragon_settings']['minZoomImageRatio'] = array(
     '#type' => 'textfield',
