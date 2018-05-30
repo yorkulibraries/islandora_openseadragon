@@ -29,9 +29,9 @@ Note: If you use the Drush command, it is advisable to Move (not copy) the insta
 
 #### Drupal 
 
-Set the paths for 'Djatoka server base URL' and configure OpenSeadragon in Administration » Islandora » OpenSeadragon (admin/islandora/module).
+Set the paths for 'Djatoka server base URL' and configure OpenSeadragon in Administration » Islandora » Islandora Viewers » OpenSeadragon (admin/islandora/islandora_viewers/openseadragon).
 
-![Configuration](https://camo.githubusercontent.com/c1bf991b5cc758a4420444564a91b286007e6f6e/687474703a2f2f692e696d6775722e636f6d2f4e6566597169432e706e67)
+![Configuration](https://user-images.githubusercontent.com/25011926/40389344-2a7854ea-5de0-11e8-8db9-7a1bf25f2561.png)
 
 If you have an *existing* install it's required to update Openseadragon to it's latest version. You can do this quickly 
 with the provided Drush command.
