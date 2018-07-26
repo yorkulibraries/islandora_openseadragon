@@ -70,32 +70,3 @@ function template_process_islandora_openseadragon_viewer(array &$variables) {
   drupal_add_js("$module_path/js/islandora_openseadragon.js", array('weight' => -2));
   drupal_add_css("$module_path/css/islandora_openseadragon.theme.css");
 }
-
-/**
- * Theme function to create a clipper link.
- *
- * @param array $variables
- *   The theme function variables.
- *
- * @return string
- *   The clipped image rendered into html.
- */
-function theme_islandora_openseadragon_clipper(array &$variables) {
-  $image = theme(
-    'image',
-    array(
-      'path' => drupal_get_path('module', 'islandora_openseadragon') . '/images/clip_icon.png',
-    )
-  );
-  return l(
-    $image,
-    "islandora/object/{$variables['pid']}/print",
-    array(
-      'attributes' => array(
-        'title' => t('Clip Image'),
-        'id' => 'clip',
-      ),
-      'html' => TRUE,
-    )
-  );
-}
